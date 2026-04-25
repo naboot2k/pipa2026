@@ -1,36 +1,198 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 枇杷树下民宿 · 前台管理系统
 
-## Getting Started
+> 零基础上手指南：不需要编程经验，按步骤操作即可运行。
 
-First, run the development server:
+---
+
+## 一、使用前准备
+
+### 1. 安装 Node.js
+
+本系统需要 Node.js 运行环境。
+
+1. 打开浏览器访问 https://nodejs.org/
+2. 点击 **LTS**（长期支持版）的下载按钮
+3. 下载完成后双击安装包，一路点击 "继续" 完成安装
+4. 验证安装：打开 **终端**（Mac：按 `Cmd + 空格`，搜索"终端"，回车），输入以下命令并回车：
+   ```bash
+   node -v
+   ```
+   如果显示版本号（如 `v22.x.x`），说明安装成功。
+
+### 2. 下载项目代码
+
+1. 打开终端，进入你想存放项目的目录（比如桌面）：
+   ```bash
+   cd ~/Desktop
+   ```
+2. 克隆项目：
+   ```bash
+   git clone https://github.com/naboot2k/pipa2026.git
+   ```
+3. 进入项目目录：
+   ```bash
+   cd pipa2026
+   ```
+
+### 3. 安装依赖
+
+在项目目录的终端中，运行：
+
+```bash
+npm install
+```
+
+这会下载项目所需的工具包，可能需要 1-2 分钟，请等待完成。
+
+### 4. 初始化数据库
+
+```bash
+npx prisma db push
+```
+
+这会创建一个 SQLite 数据库文件（`dev.db`），所有数据会保存在这个文件里。
+
+---
+
+## 二、启动系统
+
+在项目目录的终端中，运行：
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+看到类似 `▲ Next.js 16.x.x ready in xxx ms` 的提示后，打开浏览器访问：
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**http://localhost:3000**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> **注意**：终端窗口不要关闭，关闭后系统会停止运行。下次使用时重新打开终端，进入项目目录，再运行 `npm run dev` 即可。
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 三、系统功能说明
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+左侧导航栏有 7 个功能模块：
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| 模块 | 说明 |
+|------|------|
+| **仪表盘** | 总览今日入住/退房/空房情况 |
+| **房型管理** | 添加/编辑房型，管理房间号 |
+| **房态日历** | 月视图查看每天的入住/退房情况 |
+| **预订管理** | 查看和管理所有预订订单 |
+| **入住/退房** | 办理客人入住和退房手续 |
+| **收银管理** | 记录收款、退款，查看今日营收 |
+| **订单统计** | 按日期/房型筛选，导出营收报表 |
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 四、日常操作流程
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 第一步：设置房型和房间
+
+1. 点击左侧 **房型管理**
+2. 点击右上角 **新增房型**
+3. 填写：
+   - **房型名称**：如 "大床房"、"双床房"、"家庭房"
+   - **平日价格**：如 299
+   - **周末价格**（可选）：如 399
+   - **房间总数**：该房型有几个房间
+   - **描述**（可选）：如 "20㎡ / 1.8米床 / 独立卫浴"
+4. 点击 **保存**
+5. 点击房型右侧的 **▼** 展开，逐个添加房间号（如 101、102、201）
+
+### 第二步：新建预订
+
+1. 点击左侧 **预订管理** → **新建预订**
+2. 填写：
+   - **客人姓名**、**联系电话**
+   - **身份证号**（可选，建议填写）
+   - **选择房型**
+   - **入住日期** 和 **离店日期**
+   - **成人数**、**儿童数**
+   - **备注**（可选）
+3. 系统会自动计算总价，确认无误后点击 **确认预订**
+
+### 第三步：办理入住
+
+1. 点击左侧 **入住/退房**，选择 **入住** 标签
+2. 找到待入住的预订（状态为"已确认"），点击 **办理入住**
+3. 选择分配的房间号
+4. 确认信息后点击 **确认入住**
+5. 系统会自动记录房费和押金
+
+### 第四步：办理退房
+
+1. 点击左侧 **入住/退房**，选择 **退房** 标签
+2. 找到待退房的订单（状态为"已入住"），点击 **办理退房**
+3. 查看费用明细，确认退款金额
+4. 选择支付方式（微信/支付宝/现金/刷卡）
+5. 点击 **确认退房**
+
+### 第五步：查看房态日历
+
+1. 点击左侧 **房态日历**
+2. 每天日期格分为上下两半：
+   - 🔴 **红色箭头 + 上方**：当日退房客人
+   - 🟢 **绿色箭头 + 下方**：当日入住客人
+   - 🔵 **蓝色箭头**：当日在住客人（中间天）
+3. 点击客人姓名可查看预订详情
+
+### 第六步：订单统计与导出
+
+1. 点击左侧 **订单统计**
+2. 选择日期范围、房型、状态进行筛选
+3. 查看汇总数据：总订单数、房费收入、净收入等
+4. 点击右上角 **导出 CSV** 可下载 Excel 可打开的报表文件
+
+---
+
+## 五、常见问题
+
+### Q: 系统无法启动，提示 "port 3000 already in use"
+**A**: 说明 3000 端口已被占用。关闭之前未关闭的终端窗口，或者换一个端口启动：
+```bash
+npm run dev -- -p 3001
+```
+然后访问 http://localhost:3001
+
+### Q: 删除房型时提示错误
+**A**: 如果该房型下还有房间或预订，需要先删除关联的房间和预订。
+
+### Q: 数据在哪里？会丢失吗？
+**A**: 所有数据保存在项目目录下的 `dev.db` 文件中。只要这个文件在，数据就不会丢失。建议定期备份 `dev.db` 文件。
+
+### Q: 如何备份数据？
+**A**: 直接复制项目目录下的 `dev.db` 文件到 U 盘或云盘即可。
+
+### Q: 如何在局域网内其他设备访问？
+**A**: 
+1. 先查本机 IP：终端运行 `ipconfig getifaddr en0`（Mac）或 `ipconfig`（Windows）
+2. 启动时指定 host：`npm run dev -- -H 0.0.0.0`
+3. 其他设备浏览器访问：`http://<你的IP>:3000`
+
+### Q: 如何更新代码？
+**A**: 在终端中运行：
+```bash
+git pull
+npm install
+npx prisma db push
+```
+
+---
+
+## 六、技术信息
+
+- **前端框架**：Next.js 16
+- **数据库**：SQLite（单文件，无需额外安装数据库服务）
+- **ORM**：Prisma 7
+- **样式**：Tailwind CSS 4
+- **部署方式**：单机运行，适合局域网内使用
+
+---
+
+## 七、更新日志
+
+| 日期 | 版本 | 说明 |
+|------|------|------|
+| 2026-04-25 | v1.0 | 首次发布，包含房型管理、预订管理、房态日历、入住/退房、收银管理、订单统计、仪表盘 |
