@@ -14,9 +14,6 @@ export async function POST(req: Request) {
   const roomType = await prisma.roomType.create({
     data: {
       name: body.name,
-      price: parseFloat(body.price),
-      weekendPrice: body.weekendPrice ? parseFloat(body.weekendPrice) : null,
-      description: body.description || null,
       totalRooms: parseInt(body.totalRooms) || 0,
     },
   });

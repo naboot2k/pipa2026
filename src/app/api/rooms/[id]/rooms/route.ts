@@ -5,7 +5,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const body = await req.json();
   const room = await prisma.room.create({
-    data: { roomNumber: body.roomNumber, roomTypeId: id },
+    data: { roomNumber: body.roomNumber, roomType: { connect: { id } } },
   });
   return NextResponse.json(room);
 }

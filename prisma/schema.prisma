@@ -11,17 +11,13 @@ datasource db {
 }
 
 model RoomType {
-  id            String    @id @default(cuid())
-  name          String
-  price         Float
-  weekendPrice  Float?
-  description   String?
-  image         String?
-  totalRooms    Int
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  rooms         Room[]    @relation("RoomTypeRooms")
-  bookings      Booking[] @relation("RoomTypeBookings")
+  id         String   @id @default(cuid())
+  name       String
+  totalRooms Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  rooms      Room[]   @relation("RoomTypeRooms")
+  bookings   Booking[] @relation("RoomTypeBookings")
 }
 
 model Room {
@@ -36,42 +32,30 @@ model Room {
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  guestName   String
-  guestPhone  String
-  guestIdCard String?
-  roomTypeId  String
-  roomType    RoomType      @relation("RoomTypeBookings", fields: [roomTypeId], references: [id], onDelete: Cascade)
-  roomId      String?
-  room        Room?         @relation(fields: [roomId], references: [id])
-  checkIn     DateTime
-  checkOut    DateTime
-  status      BookingStatus @default(PENDING)
-  adults      Int           @default(1)
-  children    Int           @default(0)
-  notes       String?
-  totalPrice  Float
-  deposit     Float         @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  payments    Payment[]
-}
-
-model Payment {
-  id        String        @id @default(cuid())
-  bookingId String
-  booking   Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  amount    Float
-  type      PaymentType
-  method    PaymentMethod
-  createdAt DateTime      @default(now())
+  id               String        @id @default(cuid())
+  guestName        String
+  guestPhone       String?
+  guestIdCard      String?
+  guestAddress     String?
+  emergencyContact String?
+  emergencyPhone   String?
+  roomTypeId       String
+  roomType         RoomType      @relation("RoomTypeBookings", fields: [roomTypeId], references: [id], onDelete: Cascade)
+  roomId           String?
+  room             Room?         @relation(fields: [roomId], references: [id])
+  checkIn          DateTime
+  checkOut         DateTime
+  status           BookingStatus @default(PENDING)
+  adults           Int           @default(1)
+  children         Int           @default(0)
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 enum RoomStatus {
   AVAILABLE
   OCCUPIED
-  RESERVED
-  CLEANING
   MAINTENANCE
 }
 
@@ -81,19 +65,4 @@ enum BookingStatus {
   CHECKED_IN
   CHECKED_OUT
   CANCELLED
-}
-
-enum PaymentType {
-  ROOM_FEE
-  DEPOSIT
-  MEAL
-  EXTRA
-  REFUND
-}
-
-enum PaymentMethod {
-  CASH
-  WECHAT
-  ALIPAY
-  CARD
 }

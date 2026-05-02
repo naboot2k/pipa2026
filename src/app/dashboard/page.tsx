@@ -1,14 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { format, startOfDay, endOfDay } from "date-fns";
 import Link from "next/link";
-import { BedDouble, DoorOpen, ClipboardList, Wallet } from "lucide-react";
+import { BedDouble, DoorOpen, ClipboardList } from "lucide-react";
 
 export default async function DashboardPage() {
   const today = new Date();
   const todayStart = startOfDay(today);
   const todayEnd = endOfDay(today);
 
-  const [totalRooms, occupiedRooms, todayCheckIns, todayCheckOuts, pendingBookings, todayPayments] =
+  const [totalRooms, occupiedRooms, todayCheckIns, todayCheckOuts, pendingBookings] =
     await Promise.all([
       prisma.room.count(),
       prisma.room.count({ where: { status: "OCCUPIED" } }),
@@ -19,10 +19,6 @@ export default async function DashboardPage() {
         where: { checkOut: { gte: todayStart, lte: todayEnd } },
       }),
       prisma.booking.count({ where: { status: "PENDING" } }),
-      prisma.payment.aggregate({
-        where: { createdAt: { gte: todayStart, lte: todayEnd } },
-        _sum: { amount: true },
-      }),
     ]);
 
   const occupancy = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).toFixed(1) : "0.0";
@@ -32,12 +28,6 @@ export default async function DashboardPage() {
     { label: "今日入住", value: todayCheckIns, icon: DoorOpen, color: "bg-green-500" },
     { label: "今日退房", value: todayCheckOuts, icon: DoorOpen, color: "bg-orange-500" },
     { label: "待确认预订", value: pendingBookings, icon: ClipboardList, color: "bg-yellow-500" },
-    {
-      label: "今日营收",
-      value: `¥${(todayPayments._sum.amount ?? 0).toFixed(2)}`,
-      icon: Wallet,
-      color: "bg-purple-500",
-    },
   ];
 
   const recentBookings = await prisma.booking.findMany({
@@ -84,7 +74,6 @@ export default async function DashboardPage() {
                 <th className="text-left p-3">房型</th>
                 <th className="text-left p-3">入住日期</th>
                 <th className="text-left p-3">离店日期</th>
-                <th className="text-left p-3">总价</th>
                 <th className="text-left p-3">状态</th>
               </tr>
             </thead>
@@ -95,7 +84,6 @@ export default async function DashboardPage() {
                   <td className="p-3">{b.roomType.name}</td>
                   <td className="p-3">{format(b.checkIn, "MM-dd")}</td>
                   <td className="p-3">{format(b.checkOut, "MM-dd")}</td>
-                  <td className="p-3">¥{b.totalPrice.toFixed(2)}</td>
                   <td className="p-3">
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs ${

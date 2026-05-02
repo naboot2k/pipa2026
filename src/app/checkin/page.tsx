@@ -2,18 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { CheckCircle, LogOut } from "lucide-react";
+import { CheckCircle, LogOut, Plus, X } from "lucide-react";
 
 interface Booking {
   id: string;
   guestName: string;
-  guestPhone: string;
-  guestIdCard: string | null;
+  guestPhone: string | null;
   checkIn: string;
   checkOut: string;
   status: string;
-  totalPrice: number;
-  deposit: number;
   roomType: { name: string };
   room: { id: string; roomNumber: string } | null;
 }
@@ -31,8 +28,8 @@ export default function CheckinPage() {
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [idCard, setIdCard] = useState("");
-  const [deposit, setDeposit] = useState("");
+  const [idCards, setIdCards] = useState<string[]>([""]);
+  const [phone, setPhone] = useState("");
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -40,12 +37,11 @@ export default function CheckinPage() {
   }, [tab]);
 
   async function loadData() {
-    const res = await fetch("/api/bookings");
+    const res = await fetch("/api/bookings", { cache: "no-store" });
     const data = await res.json();
     setBookings(data);
 
-    // Load all rooms with their types
-    const roomsRes = await fetch("/api/rooms");
+    const roomsRes = await fetch("/api/rooms", { cache: "no-store" });
     const roomsData = await roomsRes.json();
     const allRooms: Room[] = [];
     roomsData.forEach((rt: any) => {
@@ -64,59 +60,102 @@ export default function CheckinPage() {
     return bookings.filter((b) => b.status === "CHECKED_IN");
   }
 
+  function addIdCard() {
+    setIdCards([...idCards, ""]);
+  }
+
+  function removeIdCard(index: number) {
+    if (idCards.length > 1) {
+      setIdCards(idCards.filter((_, i) => i !== index));
+    }
+  }
+
+  function updateIdCard(index: number, value: string) {
+    const updated = [...idCards];
+    updated[index] = value;
+    setIdCards(updated);
+  }
+
+  function validateIdCard(card: string): string | null {
+    if (!card.trim()) return null;
+    if (!/^\d{17}[\dXx]$/.test(card.trim())) return "身份证号格式无效（18位数字或17位数字+X）";
+    return null;
+  }
+
   async function handleCheckIn() {
-    if (!selectedBooking || !selectedRoomId || !idCard) {
-      alert("请填写完整信息");
+    if (!selectedBooking || !selectedRoomId) {
+      alert("请选择房间");
       return;
+    }
+    const filledCards = idCards.filter((c) => c.trim());
+    // Validate ID cards
+    for (const card of filledCards) {
+      const err = validateIdCard(card);
+      if (err) {
+        alert(err);
+        return;
+      }
     }
     setProcessing(true);
     try {
-      // Update booking
-      await fetch(`/api/bookings/${selectedBooking.id}`, {
+      // Fetch existing notes to preserve them
+      const bookingRes = await fetch(`/api/bookings/${selectedBooking.id}`);
+      const bookingData = await bookingRes.json();
+      const existingNotes = bookingData.notes || "";
+
+      // Build extra ID card data with separator to preserve real notes
+      let finalNotes: string | null = null;
+      if (filledCards.length > 1) {
+        const extraCards = filledCards.slice(1);
+        const idPart = JSON.stringify(extraCards);
+        // Extract existing real notes (strip old ID card data)
+        let realNotes = existingNotes;
+        if (realNotes.includes("\n|||ID_END|||\n")) {
+          realNotes = realNotes.split("\n|||ID_END|||\n")[1] || "";
+        } else {
+          try {
+            // If entire notes is just a JSON array, it's old ID card data
+            const parsed = JSON.parse(realNotes);
+            if (Array.isArray(parsed)) realNotes = "";
+          } catch {}
+        }
+        finalNotes = realNotes ? `${idPart}\n|||ID_END|||\n${realNotes}` : idPart;
+      } else if (existingNotes && !existingNotes.includes("\n|||ID_END|||\n")) {
+        // Keep existing notes if they're not old ID-only format
+        try {
+          const parsed = JSON.parse(existingNotes);
+          if (!Array.isArray(parsed)) finalNotes = existingNotes;
+        } catch {
+          finalNotes = existingNotes;
+        }
+      }
+
+      const res = await fetch(`/api/bookings/${selectedBooking.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: "CHECKED_IN",
           roomId: selectedRoomId,
-          guestIdCard: idCard,
-          deposit: deposit || "0",
+          guestPhone: phone || null,
+          guestIdCard: filledCards[0] || null,
+          notes: finalNotes,
         }),
       });
-      // Update room status
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "操作失败");
+        return;
+      }
       await fetch(`/api/rooms/rooms/${selectedRoomId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "OCCUPIED" }),
       });
-      // Record payment: room fee + deposit
-      const totalAmount = selectedBooking.totalPrice + (parseFloat(deposit) || 0);
-      await fetch("/api/cashier", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingId: selectedBooking.id,
-          amount: selectedBooking.totalPrice,
-          type: "ROOM_FEE",
-          method: "CASH",
-        }),
-      });
-      if (parseFloat(deposit) > 0) {
-        await fetch("/api/cashier", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bookingId: selectedBooking.id,
-            amount: parseFloat(deposit),
-            type: "DEPOSIT",
-            method: "CASH",
-          }),
-        });
-      }
       alert("入住办理成功！");
       setSelectedBooking(null);
       setSelectedRoomId("");
-      setIdCard("");
-      setDeposit("");
+      setIdCards([""]);
+      setPhone("");
       loadData();
     } finally {
       setProcessing(false);
@@ -126,34 +165,19 @@ export default function CheckinPage() {
   async function handleCheckOut(booking: Booking) {
     if (!confirm(`确认退房：${booking.guestName} - ${booking.room?.roomNumber}？`)) return;
     try {
-      // Update booking
       await fetch(`/api/bookings/${booking.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "CHECKED_OUT" }),
       });
-      // Update room status to cleaning
       if (booking.roomId) {
         await fetch(`/api/rooms/rooms/${booking.roomId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "CLEANING" }),
+          body: JSON.stringify({ status: "AVAILABLE" }),
         });
       }
-      // Record deposit refund
-      if (booking.deposit > 0) {
-        await fetch("/api/cashier", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bookingId: booking.id,
-            amount: booking.deposit,
-            type: "REFUND",
-            method: "CASH",
-          }),
-        });
-      }
-      alert("退房办理成功！房间已标记为打扫中。");
+      alert("退房办理成功！房间已标记为空闲。");
       loadData();
     } catch (e) {
       alert("操作失败");
@@ -191,7 +215,7 @@ export default function CheckinPage() {
                     <h3 className="font-semibold text-lg">{booking.guestName}</h3>
                     <p className="text-sm text-gray-500 mt-1">
                       {booking.roomType.name} · {format(new Date(booking.checkIn), "MM-dd")} ~{" "}
-                      {format(new Date(booking.checkOut), "MM-dd")} · ¥{booking.totalPrice.toFixed(2)}
+                      {format(new Date(booking.checkOut), "MM-dd")}
                     </p>
                   </div>
                   <button
@@ -219,7 +243,7 @@ export default function CheckinPage() {
                   <div>
                     <h3 className="font-semibold text-lg">{booking.guestName}</h3>
                     <p className="text-sm text-gray-500 mt-1">
-                      房间 {booking.room?.roomNumber} · {booking.roomType.name} · 押金 ¥{booking.deposit.toFixed(2)}
+                      房间 {booking.room?.roomNumber} · {booking.roomType.name}
                     </p>
                   </div>
                   <button
@@ -236,13 +260,14 @@ export default function CheckinPage() {
         </div>
       )}
 
-      {/* Check-in modal */}
       {selectedBooking && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
           onClick={() => {
             setSelectedBooking(null);
             setSelectedRoomId("");
+            setIdCards([""]);
+            setPhone("");
           }}
         >
           <div
@@ -272,23 +297,50 @@ export default function CheckinPage() {
                 <p className="text-xs text-gray-400 mt-1">仅显示同房型且空闲的房间</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">身份证号</label>
-                <input
-                  type="text"
-                  value={idCard}
-                  onChange={(e) => setIdCard(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="请输入客人身份证号"
-                />
+                <label className="block text-sm font-medium mb-2">身份证号</label>
+                {idCards.map((card, i) => {
+                  const err = validateIdCard(card);
+                  return (
+                    <div key={i} className="flex gap-2 mb-2">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={card}
+                          onChange={(e) => updateIdCard(i, e.target.value)}
+                          className={`w-full border rounded-lg px-3 py-2 ${err ? "border-red-400 bg-red-50" : ""}`}
+                          placeholder={i === 0 ? "主入住人身份证号" : "同住人身份证号"}
+                        />
+                        {err && <p className="text-xs text-red-500 mt-0.5">{err}</p>}
+                      </div>
+                      {idCards.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeIdCard(i)}
+                          className="p-2 text-gray-400 hover:text-red-500"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={addIdCard}
+                  className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  添加同住人
+                </button>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">押金金额</label>
+                <label className="block text-sm font-medium mb-1">联系电话</label>
                 <input
-                  type="number"
-                  value={deposit}
-                  onChange={(e) => setDeposit(e.target.value)}
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2"
-                  placeholder="0"
+                  placeholder="请输入客人联系电话"
                 />
               </div>
               <div className="flex gap-3 justify-end pt-2">
@@ -296,8 +348,8 @@ export default function CheckinPage() {
                   onClick={() => {
                     setSelectedBooking(null);
                     setSelectedRoomId("");
-                    setIdCard("");
-                    setDeposit("");
+                    setIdCards([""]);
+                    setPhone("");
                   }}
                   className="px-4 py-2 border rounded-lg"
                 >

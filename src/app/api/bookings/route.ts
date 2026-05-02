@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { format } from "date-fns";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -7,7 +8,7 @@ export async function GET(req: Request) {
 
   const bookings = await prisma.booking.findMany({
     where: status ? { status: status as any } : {},
-    include: { roomType: true, room: true, payments: true },
+    include: { roomType: true, room: true },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(bookings);
@@ -23,20 +24,59 @@ export async function POST(req: Request) {
   if (checkOut <= checkIn) {
     return NextResponse.json({ error: "离店日期必须晚于入住日期" }, { status: 400 });
   }
+
+  // Validate ID card format if provided
+  if (body.guestIdCard && !/^\d{17}[\dXx]$/.test(body.guestIdCard)) {
+    return NextResponse.json({ error: "身份证号格式无效（应为18位数字或17位数字+X）" }, { status: 400 });
+  }
+  if (body.notes) {
+    try {
+      const parsed = JSON.parse(body.notes);
+      if (Array.isArray(parsed)) {
+        for (const card of parsed) {
+          if (!/^\d{17}[\dXx]$/.test(card)) {
+            return NextResponse.json({ error: "身份证号格式无效（应为18位数字或17位数字+X）" }, { status: 400 });
+          }
+        }
+      }
+    } catch {
+      // Not JSON, skip ID card validation
+    }
+  }
+
+  // Check room conflict when assigning a room
+  if (body.roomId) {
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        roomId: body.roomId,
+        status: { in: ["CHECKED_IN", "CONFIRMED"] },
+        checkIn: { lt: checkOut },
+        checkOut: { gt: checkIn },
+      },
+    });
+    if (conflict) {
+      return NextResponse.json(
+        { error: `房间已被 ${conflict.guestName} 在 ${format(conflict.checkIn, "MM-dd")} ~ ${format(conflict.checkOut, "MM-dd")} 期间预订` },
+        { status: 409 }
+      );
+    }
+  }
+
   const booking = await prisma.booking.create({
     data: {
       guestName: body.guestName,
-      guestPhone: body.guestPhone,
+      guestPhone: body.guestPhone || null,
       guestIdCard: body.guestIdCard || null,
-      roomTypeId: body.roomTypeId,
-      roomId: body.roomId || null,
+      guestAddress: body.guestAddress || null,
+      emergencyContact: body.emergencyContact || null,
+      emergencyPhone: body.emergencyPhone || null,
+      roomType: { connect: { id: body.roomTypeId } },
+      ...(body.roomId && { room: { connect: { id: body.roomId } } }),
       checkIn: new Date(body.checkIn),
       checkOut: new Date(body.checkOut),
       adults: parseInt(body.adults) || 1,
       children: parseInt(body.children) || 0,
       notes: body.notes || null,
-      totalPrice: parseFloat(body.totalPrice),
-      deposit: parseFloat(body.deposit) || 0,
       status: body.status || "PENDING",
     },
   });

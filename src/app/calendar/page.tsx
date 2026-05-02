@@ -57,8 +57,8 @@ export default function CalendarPage() {
 
   async function loadData() {
     const [roomsRes, bookingsRes] = await Promise.all([
-      fetch("/api/rooms"),
-      fetch("/api/bookings"),
+      fetch("/api/rooms", { cache: "no-store" }),
+      fetch("/api/bookings", { cache: "no-store" }),
     ]);
     const roomsData = await roomsRes.json();
     const bookingsData = await bookingsRes.json();

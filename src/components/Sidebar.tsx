@@ -8,8 +8,7 @@ import {
   CalendarDays,
   ClipboardList,
   DoorOpen,
-  Wallet,
-  BarChart3,
+  Users,
 } from "lucide-react";
 
 const navItems = [
@@ -18,8 +17,7 @@ const navItems = [
   { href: "/calendar", label: "房态日历", icon: CalendarDays },
   { href: "/bookings", label: "预订管理", icon: ClipboardList },
   { href: "/checkin", label: "入住/退房", icon: DoorOpen },
-  { href: "/cashier", label: "收银管理", icon: Wallet },
-  { href: "/stats", label: "订单统计", icon: BarChart3 },
+  { href: "/guests", label: "入住人员", icon: Users },
 ];
 
 export function Sidebar() {

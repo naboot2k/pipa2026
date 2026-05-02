@@ -8,11 +8,10 @@ import { Plus, Eye } from "lucide-react";
 interface Booking {
   id: string;
   guestName: string;
-  guestPhone: string;
+  guestPhone: string | null;
   checkIn: string;
   checkOut: string;
   status: string;
-  totalPrice: number;
   roomType: { name: string };
   room: { roomNumber: string } | null;
 }
@@ -43,7 +42,7 @@ export default function BookingsPage() {
 
   async function fetchBookings() {
     const url = filterStatus ? `/api/bookings?status=${filterStatus}` : "/api/bookings";
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     setBookings(data);
   }
@@ -104,12 +103,10 @@ export default function BookingsPage() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left p-3">客人</th>
-                <th className="text-left p-3">电话</th>
                 <th className="text-left p-3">房型</th>
                 <th className="text-left p-3">房间</th>
                 <th className="text-left p-3">入住日期</th>
                 <th className="text-left p-3">离店日期</th>
-                <th className="text-left p-3">总价</th>
                 <th className="text-left p-3">状态</th>
                 <th className="text-left p-3">操作</th>
               </tr>
@@ -118,12 +115,10 @@ export default function BookingsPage() {
               {bookings.map((b) => (
                 <tr key={b.id} className="border-b hover:bg-gray-50">
                   <td className="p-3">{b.guestName}</td>
-                  <td className="p-3">{b.guestPhone}</td>
                   <td className="p-3">{b.roomType.name}</td>
                   <td className="p-3">{b.room?.roomNumber || "-"}</td>
                   <td className="p-3">{format(new Date(b.checkIn), "MM-dd")}</td>
                   <td className="p-3">{format(new Date(b.checkOut), "MM-dd")}</td>
-                  <td className="p-3">¥{b.totalPrice.toFixed(2)}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[b.status]}`}>
                       {statusLabels[b.status]}

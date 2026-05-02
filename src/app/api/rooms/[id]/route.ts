@@ -18,9 +18,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     where: { id },
     data: {
       name: body.name,
-      price: parseFloat(body.price),
-      weekendPrice: body.weekendPrice ? parseFloat(body.weekendPrice) : null,
-      description: body.description || null,
       totalRooms: parseInt(body.totalRooms),
     },
   });

@@ -12,9 +12,6 @@ interface Room {
 interface RoomType {
   id: string;
   name: string;
-  price: number;
-  weekendPrice: number | null;
-  description: string | null;
   totalRooms: number;
   rooms: Room[];
 }
@@ -22,8 +19,6 @@ interface RoomType {
 const statusLabels: Record<string, string> = {
   AVAILABLE: "空闲",
   OCCUPIED: "已入住",
-  RESERVED: "已预订",
-  CLEANING: "打扫中",
   MAINTENANCE: "维修中",
 };
 
@@ -31,7 +26,7 @@ export default function RoomsPage() {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", price: "", weekendPrice: "", description: "", totalRooms: "" });
+  const [form, setForm] = useState({ name: "", totalRooms: "" });
   const [expandedType, setExpandedType] = useState<string | null>(null);
   const [newRoomNumber, setNewRoomNumber] = useState("");
 
@@ -40,7 +35,7 @@ export default function RoomsPage() {
   }, []);
 
   async function fetchRooms() {
-    const res = await fetch("/api/rooms");
+    const res = await fetch("/api/rooms", { cache: "no-store" });
     const data = await res.json();
     setRoomTypes(data);
   }
@@ -62,7 +57,7 @@ export default function RoomsPage() {
     }
     setShowModal(false);
     setEditingId(null);
-    setForm({ name: "", price: "", weekendPrice: "", description: "", totalRooms: "" });
+    setForm({ name: "", totalRooms: "" });
     fetchRooms();
   }
 
@@ -70,9 +65,6 @@ export default function RoomsPage() {
     setEditingId(rt.id);
     setForm({
       name: rt.name,
-      price: String(rt.price),
-      weekendPrice: rt.weekendPrice ? String(rt.weekendPrice) : "",
-      description: rt.description || "",
       totalRooms: String(rt.totalRooms),
     });
     setShowModal(true);
@@ -117,7 +109,7 @@ export default function RoomsPage() {
         <button
           onClick={() => {
             setEditingId(null);
-            setForm({ name: "", price: "", weekendPrice: "", description: "", totalRooms: "" });
+            setForm({ name: "", totalRooms: "" });
             setShowModal(true);
           }}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -133,11 +125,7 @@ export default function RoomsPage() {
             <div className="flex items-center justify-between p-5">
               <div>
                 <h3 className="text-lg font-semibold">{rt.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  平日 ¥{rt.price.toFixed(2)}
-                  {rt.weekendPrice && ` / 周末 ¥${rt.weekendPrice.toFixed(2)}`}
-                  {rt.description && ` · ${rt.description}`}
-                </p>
+                <p className="text-sm text-gray-500 mt-1">共 {rt.totalRooms} 间房</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -185,8 +173,6 @@ export default function RoomsPage() {
                       >
                         <option value="AVAILABLE">空闲</option>
                         <option value="OCCUPIED">已入住</option>
-                        <option value="RESERVED">已预订</option>
-                        <option value="CLEANING">打扫中</option>
                         <option value="MAINTENANCE">维修中</option>
                       </select>
                       <button
@@ -209,7 +195,7 @@ export default function RoomsPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">{editingId ? "编辑房型" : "新增房型"}</h3>
               <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded">
@@ -227,29 +213,6 @@ export default function RoomsPage() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium mb-1">平日价格</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">周末价格（可选）</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.weekendPrice}
-                    onChange={(e) => setForm({ ...form, weekendPrice: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2"
-                  />
-                </div>
-              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">房间总数</label>
                 <input
@@ -258,14 +221,6 @@ export default function RoomsPage() {
                   onChange={(e) => setForm({ ...form, totalRooms: e.target.value })}
                   className="w-full border rounded-lg px-3 py-2"
                   required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">描述</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 h-20"
                 />
               </div>
               <div className="flex gap-3 justify-end">
