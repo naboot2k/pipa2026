@@ -1,24 +1,41 @@
 import { prisma } from "@/lib/prisma";
 import { format, startOfDay, endOfDay } from "date-fns";
 import Link from "next/link";
-import { BedDouble, DoorOpen, ClipboardList } from "lucide-react";
+import { BedDouble, DoorOpen, UserPlus, UserMinus } from "lucide-react";
 
 export default async function DashboardPage() {
   const today = new Date();
   const todayStart = startOfDay(today);
   const todayEnd = endOfDay(today);
 
-  const [totalRooms, occupiedRooms, todayCheckIns, todayCheckOuts, pendingBookings] =
+  const [totalRooms, occupiedRooms, todayCheckIns, todayCheckOuts, pendingCheckIns, pendingCheckOuts] =
     await Promise.all([
       prisma.room.count(),
       prisma.room.count({ where: { status: "OCCUPIED" } }),
       prisma.booking.count({
-        where: { checkIn: { gte: todayStart, lte: todayEnd } },
+        where: {
+          checkIn: { gte: todayStart, lte: todayEnd },
+          status: { not: "CANCELLED" },
+        },
       }),
       prisma.booking.count({
-        where: { checkOut: { gte: todayStart, lte: todayEnd } },
+        where: {
+          checkOut: { gte: todayStart, lte: todayEnd },
+          status: { not: "CANCELLED" },
+        },
       }),
-      prisma.booking.count({ where: { status: "PENDING" } }),
+      prisma.booking.count({
+        where: {
+          checkIn: { gte: todayStart, lte: todayEnd },
+          status: "CONFIRMED",
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          checkOut: { gte: todayStart, lte: todayEnd },
+          status: "CHECKED_IN",
+        },
+      }),
     ]);
 
   const occupancy = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).toFixed(1) : "0.0";
@@ -27,11 +44,12 @@ export default async function DashboardPage() {
     { label: "当前入住率", value: `${occupancy}%`, icon: BedDouble, color: "bg-blue-500" },
     { label: "今日入住", value: todayCheckIns, icon: DoorOpen, color: "bg-green-500" },
     { label: "今日退房", value: todayCheckOuts, icon: DoorOpen, color: "bg-orange-500" },
-    { label: "待确认预订", value: pendingBookings, icon: ClipboardList, color: "bg-yellow-500" },
+    { label: "今日待入住", value: pendingCheckIns, icon: UserPlus, color: "bg-teal-500" },
+    { label: "今日待退房", value: pendingCheckOuts, icon: UserMinus, color: "bg-pink-500" },
   ];
 
   const recentBookings = await prisma.booking.findMany({
-    take: 10,
+    take: 20,
     orderBy: { createdAt: "desc" },
     include: { roomType: true, room: true },
   });
@@ -41,7 +59,7 @@ export default async function DashboardPage() {
       <h2 className="text-2xl font-bold mb-6">仪表盘</h2>
       <p className="text-sm text-gray-500 mb-4">{format(today, "yyyy年MM月dd日 EEEE")}</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {stats.map((s) => (
           <div key={s.label} className="bg-white rounded-lg shadow p-5">
             <div className="flex items-center gap-3">
@@ -67,7 +85,8 @@ export default async function DashboardPage() {
         {recentBookings.length === 0 ? (
           <p className="p-5 text-gray-400 text-center">暂无预订记录</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="max-h-96 overflow-y-auto">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="text-left p-3">客人</th>
@@ -113,6 +132,7 @@ export default async function DashboardPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

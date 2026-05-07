@@ -22,12 +22,17 @@ const statusLabels: Record<string, string> = {
   MAINTENANCE: "维修中",
 };
 
+const statusColors: Record<string, string> = {
+  AVAILABLE: "bg-green-100 text-green-700",
+  OCCUPIED: "bg-blue-100 text-blue-700",
+  MAINTENANCE: "bg-red-100 text-red-700",
+};
+
 export default function RoomsPage() {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", totalRooms: "" });
-  const [expandedType, setExpandedType] = useState<string | null>(null);
   const [newRoomNumber, setNewRoomNumber] = useState("");
 
   useEffect(() => {
@@ -128,12 +133,7 @@ export default function RoomsPage() {
                 <p className="text-sm text-gray-500 mt-1">共 {rt.totalRooms} 间房</p>
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setExpandedType(expandedType === rt.id ? null : rt.id)}
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  {rt.rooms.length} 间房 {expandedType === rt.id ? "▲" : "▼"}
-                </button>
+                <span className="text-sm text-gray-500">{rt.rooms.length} 间房</span>
                 <button onClick={() => handleEdit(rt)} className="p-1.5 hover:bg-gray-100 rounded">
                   <Edit className="w-4 h-4 text-gray-600" />
                 </button>
@@ -143,49 +143,47 @@ export default function RoomsPage() {
               </div>
             </div>
 
-            {expandedType === rt.id && (
-              <div className="border-t p-4 bg-gray-50">
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    value={newRoomNumber}
-                    onChange={(e) => setNewRoomNumber(e.target.value)}
-                    placeholder="房间号（如 101）"
-                    className="border rounded-lg px-3 py-1.5 text-sm w-32"
-                  />
-                  <button
-                    onClick={() => addRoom(rt.id)}
-                    className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    添加房间
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {rt.rooms.map((room) => (
-                    <div key={room.id} className="bg-white rounded-lg border p-3 text-center">
-                      <p className="font-semibold text-lg">{room.roomNumber}</p>
-                      <p className="text-xs text-gray-500 mt-1">{statusLabels[room.status]}</p>
-                      <select
-                        value={room.status}
-                        onChange={(e) => updateRoomStatus(room.id, e.target.value)}
-                        className="mt-1 text-xs border rounded px-1 py-0.5 w-full"
-                      >
-                        <option value="AVAILABLE">空闲</option>
-                        <option value="OCCUPIED">已入住</option>
-                        <option value="MAINTENANCE">维修中</option>
-                      </select>
-                      <button
-                        onClick={() => deleteRoom(room.id)}
-                        className="mt-1 text-xs text-red-400 hover:text-red-600"
-                      >
-                        删除
-                      </button>
-                    </div>
-                  ))}
-                </div>
+            <div className="border-t p-4 bg-gray-50">
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={newRoomNumber}
+                  onChange={(e) => setNewRoomNumber(e.target.value)}
+                  placeholder="房间号（如 101）"
+                  className="border rounded-lg px-3 py-1.5 text-sm w-32"
+                />
+                <button
+                  onClick={() => addRoom(rt.id)}
+                  className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  添加房间
+                </button>
               </div>
-            )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
+                {rt.rooms.map((room) => (
+                  <div key={room.id} className="bg-white rounded-lg border p-3 text-center">
+                    <p className="font-semibold text-lg">{room.roomNumber}</p>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block ${statusColors[room.status]}`}>{statusLabels[room.status]}</span>
+                    <select
+                      value={room.status}
+                      onChange={(e) => updateRoomStatus(room.id, e.target.value)}
+                      className="mt-1 text-xs border rounded px-1 py-0.5 w-full"
+                    >
+                      <option value="AVAILABLE">空闲</option>
+                      <option value="OCCUPIED">已入住</option>
+                      <option value="MAINTENANCE">维修中</option>
+                    </select>
+                    <button
+                      onClick={() => deleteRoom(room.id)}
+                      className="mt-1 text-xs text-red-400 hover:text-red-600"
+                    >
+                      删除
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ))}
         {roomTypes.length === 0 && (

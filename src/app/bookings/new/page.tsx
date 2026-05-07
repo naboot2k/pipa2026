@@ -6,26 +6,30 @@ import { useRouter } from "next/navigation";
 interface RoomType {
   id: string;
   name: string;
+  rooms: { id: string; roomNumber: string; status: string }[];
 }
 
 export default function NewBookingPage() {
   const router = useRouter();
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     guestName: "",
     roomTypeId: "",
+    roomId: "",
     checkIn: "",
     checkOut: "",
-    adults: "1",
-    children: "0",
     notes: "",
   });
 
   useEffect(() => {
     fetch("/api/rooms")
       .then((r) => r.json())
-      .then((data: any[]) => setRoomTypes(data.map((rt) => ({ id: rt.id, name: rt.name }))));
+      .then((data) => setRoomTypes(data));
   }, []);
+
+  const selectedRoomType = roomTypes.find((rt) => rt.id === form.roomTypeId);
+  const availableRooms = selectedRoomType?.rooms.filter((r) => r.status === "AVAILABLE") || [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,12 +39,35 @@ export default function NewBookingPage() {
       alert("离店日期必须晚于入住日期");
       return;
     }
-    await fetch("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, status: "PENDING" }),
-    });
-    router.push("/bookings");
+    if (!form.roomId) {
+      alert("请选择房间");
+      return;
+    }
+    setLoading(true);
+    try {
+      const body: Record<string, unknown> = {
+        guestName: form.guestName,
+        roomTypeId: form.roomTypeId,
+        roomId: form.roomId,
+        checkIn: form.checkIn,
+        checkOut: form.checkOut,
+        notes: form.notes || null,
+        status: "CONFIRMED",
+      };
+      const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "创建失败");
+        return;
+      }
+      router.push("/bookings");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -62,7 +89,7 @@ export default function NewBookingPage() {
           <label className="block text-sm font-medium mb-1">房型 *</label>
           <select
             value={form.roomTypeId}
-            onChange={(e) => setForm({ ...form, roomTypeId: e.target.value })}
+            onChange={(e) => setForm({ ...form, roomTypeId: e.target.value, roomId: "" })}
             className="w-full border rounded-lg px-3 py-2"
             required
           >
@@ -74,6 +101,30 @@ export default function NewBookingPage() {
             ))}
           </select>
         </div>
+
+        {form.roomTypeId && (
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              分配房间
+              {availableRooms.length === 0 && (
+                <span className="text-red-400 font-normal ml-2 text-xs">该房型暂无空闲房间</span>
+              )}
+            </label>
+            <select
+              value={form.roomId}
+              onChange={(e) => setForm({ ...form, roomId: e.target.value })}
+              className="w-full border rounded-lg px-3 py-2"
+              required
+            >
+              <option value="">请选择房间</option>
+              {availableRooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.roomNumber}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -98,29 +149,6 @@ export default function NewBookingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">成人数</label>
-            <input
-              type="number"
-              min="1"
-              value={form.adults}
-              onChange={(e) => setForm({ ...form, adults: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">儿童数</label>
-            <input
-              type="number"
-              min="0"
-              value={form.children}
-              onChange={(e) => setForm({ ...form, children: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
-        </div>
-
         <div>
           <label className="block text-sm font-medium mb-1">备注</label>
           <textarea
@@ -138,8 +166,12 @@ export default function NewBookingPage() {
           >
             取消
           </button>
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            确认预订
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? "创建中..." : "确认预订"}
           </button>
         </div>
       </form>

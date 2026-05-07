@@ -14,11 +14,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
+  if (!body.name || body.name.trim() === "") {
+    return NextResponse.json({ error: "房型名称不能为空" }, { status: 400 });
+  }
+  const totalRooms = parseInt(body.totalRooms);
+  if (isNaN(totalRooms) || totalRooms < 0) {
+    return NextResponse.json({ error: "房间总数无效" }, { status: 400 });
+  }
   const roomType = await prisma.roomType.update({
     where: { id },
     data: {
       name: body.name,
-      totalRooms: parseInt(body.totalRooms),
+      totalRooms,
     },
   });
   return NextResponse.json(roomType);

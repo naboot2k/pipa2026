@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import Link from "next/link";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 interface Booking {
   id: string;
@@ -57,12 +57,10 @@ export default function BookingsPage() {
     fetchBookings();
   }
 
-  async function handleConfirm(id: string) {
-    await fetch(`/api/bookings/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "CONFIRMED" }),
-    });
+  async function handleDelete(id: string, guestName: string, status: string) {
+    const warn = status === "CHECKED_IN" ? "该预订已入住，删除将同时释放房间。确定删除？" : `确定删除「${guestName}」的预订？`;
+    if (!confirm(warn)) return;
+    await fetch(`/api/bookings/${id}`, { method: "DELETE" });
     fetchBookings();
   }
 
@@ -85,7 +83,7 @@ export default function BookingsPage() {
           >
             全部
           </button>
-          {Object.entries(statusLabels).map(([key, label]) => (
+          {Object.entries(statusLabels).filter(([key]) => key !== "PENDING").map(([key, label]) => (
             <button
               key={key}
               onClick={() => setFilterStatus(key)}
@@ -126,15 +124,7 @@ export default function BookingsPage() {
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1">
-                      {b.status === "PENDING" && (
-                        <button
-                          onClick={() => handleConfirm(b.id)}
-                          className="px-2 py-0.5 bg-green-500 text-white rounded text-xs hover:bg-green-600"
-                        >
-                          确认
-                        </button>
-                      )}
-                      {(b.status === "PENDING" || b.status === "CONFIRMED") && (
+                      {b.status === "CONFIRMED" && (
                         <button
                           onClick={() => handleCancel(b.id)}
                           className="px-2 py-0.5 bg-red-500 text-white rounded text-xs hover:bg-red-600"
@@ -142,6 +132,13 @@ export default function BookingsPage() {
                           取消
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDelete(b.id, b.guestName, b.status)}
+                        className="px-2 py-0.5 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                        title="删除"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   </td>
                 </tr>

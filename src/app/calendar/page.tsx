@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight, ArrowUpFromDot, ArrowDownToDot } from "lucid
 interface Room {
   id: string;
   roomNumber: string;
+  roomTypeId: string;
   status: string;
   roomType: { name: string };
 }
@@ -27,6 +28,8 @@ interface Booking {
   checkOut: string;
   status: string;
   roomId: string | null;
+  roomTypeId: string;
+  notes: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -77,27 +80,38 @@ export default function CalendarPage() {
     end: endOfMonth(currentMonth),
   });
 
-  function getCheckoutsForDay(roomId: string, day: Date): Booking[] {
+  const hiddenStatuses = ["CANCELLED"];
+
+  function matchesRoom(b: Booking, roomId: string, roomTypeId: string): boolean {
+    if (b.roomId === roomId) return true;
+    if (!b.roomId && b.roomTypeId === roomTypeId && b.status === "CONFIRMED") return true;
+    return false;
+  }
+
+  function getCheckoutsForDay(roomId: string, roomTypeId: string, day: Date): Booking[] {
     return bookings.filter((b) => {
-      if (b.roomId !== roomId) return false;
+      if (!matchesRoom(b, roomId, roomTypeId)) return false;
+      if (hiddenStatuses.includes(b.status)) return false;
       return isSameDay(new Date(b.checkOut), day);
     });
   }
 
-  function getCheckinsForDay(roomId: string, day: Date): Booking[] {
+  function getCheckinsForDay(roomId: string, roomTypeId: string, day: Date): Booking[] {
     return bookings.filter((b) => {
-      if (b.roomId !== roomId) return false;
+      if (!matchesRoom(b, roomId, roomTypeId)) return false;
+      if (hiddenStatuses.includes(b.status)) return false;
       return isSameDay(new Date(b.checkIn), day);
     });
   }
 
-  function getStayBooking(roomId: string, day: Date): Booking | null {
-    return bookings.find((b) => {
-      if (b.roomId !== roomId) return false;
+  function getStayBookings(roomId: string, roomTypeId: string, day: Date): Booking[] {
+    return bookings.filter((b) => {
+      if (!matchesRoom(b, roomId, roomTypeId)) return false;
+      if (hiddenStatuses.includes(b.status)) return false;
       const checkIn = new Date(b.checkIn);
       const checkOut = new Date(b.checkOut);
       return isWithinInterval(day, { start: checkIn, end: new Date(checkOut.getTime() - 86400000) });
-    }) || null;
+    });
   }
 
   function isToday(day: Date) {
@@ -155,39 +169,53 @@ export default function CalendarPage() {
                 <span className="text-[10px] text-gray-400 truncate w-full text-center">{room.roomType.name}</span>
               </div>
               {days.map((day, i) => {
-                const checkouts = getCheckoutsForDay(room.id, day);
-                const checkins = getCheckinsForDay(room.id, day);
-                const stayBooking = getStayBooking(room.id, day);
+                const checkouts = getCheckoutsForDay(room.id, room.roomTypeId, day);
+                const checkins = getCheckinsForDay(room.id, room.roomTypeId, day);
+                const stayGuests = getStayBookings(room.id, room.roomTypeId, day);
                 const today = isToday(day);
-                // Stay guests also appear in both halves
-                const stayGuests = stayBooking ? [stayBooking] : [];
+                const hasStay = stayGuests.length > 0;
+                const hasCheckedIn = stayGuests.some((b) => b.status === "CHECKED_IN");
+                const stayFirst = stayGuests[0];
+                const isConfirmed = stayFirst?.status === "CONFIRMED";
+                const isUnassigned = isConfirmed && !stayFirst?.roomId;
+
+                const stayBg = today ? "bg-blue-50/50" : hasCheckedIn ? "bg-blue-100/30" : isUnassigned ? "bg-amber-50/20" : hasStay ? "bg-amber-50/50" : "";
+                const stayTextColor = isUnassigned ? "text-amber-400" : isConfirmed ? "text-amber-700" : "text-blue-600";
+
+                const checkinFirst = checkins[0];
+                const checkinIsUnassigned = checkinFirst?.status === "CONFIRMED" && !checkinFirst?.roomId;
+                const checkinTextColor = checkinIsUnassigned ? "text-amber-400" : checkinFirst?.status === "CONFIRMED" ? "text-amber-700" : "text-green-600";
+
+                const checkoutFirst = checkouts[0];
+                const checkoutIsUnassigned = checkoutFirst?.status === "CONFIRMED" && !checkoutFirst?.roomId;
+                const checkoutTextColor = checkoutIsUnassigned ? "text-amber-400" : checkoutFirst?.status === "CONFIRMED" ? "text-amber-700" : "text-red-600";
+
+                const stayLabel = isUnassigned ? "待分配" : isConfirmed ? "预定" : "在住";
 
                 return (
                   <div
                     key={i}
-                    className={`flex-1 min-w-[36px] border-r last:border-r-0 flex flex-col ${
-                      today ? "bg-blue-50/50" : stayBooking ? "bg-blue-100/30" : ""
-                    }`}
+                    className={`flex-1 min-w-[36px] border-r last:border-r-0 flex flex-col ${stayBg}`}
                   >
                     {/* Top: checkouts + stay guests */}
                     <div className="flex-1 min-h-[18px] flex items-start justify-center pt-0.5">
                       {checkouts.length > 0 ? (
                         <button
                           onClick={() => setSelectedBooking(checkouts[0])}
-                          className="flex items-center gap-0.5 text-[10px] text-red-600 truncate max-w-full"
+                          className={`flex items-center gap-0.5 text-[10px] ${checkoutTextColor} truncate max-w-full`}
                           title={`退房: ${checkouts.map((b) => b.guestName).join(", ")}`}
                         >
                           <ArrowUpFromDot className="w-2.5 h-2.5 flex-shrink-0" />
                           <span className="truncate">{checkouts[0].guestName}</span>
                         </button>
-                      ) : stayGuests.length > 0 ? (
+                      ) : hasStay ? (
                         <button
-                          onClick={() => setSelectedBooking(stayGuests[0])}
-                          className="flex items-center gap-0.5 text-[10px] text-blue-600 truncate max-w-full"
-                          title={`在住: ${stayGuests[0].guestName}`}
+                          onClick={() => setSelectedBooking(stayFirst!)}
+                          className={`flex items-center gap-0.5 text-[10px] ${stayTextColor} truncate max-w-full`}
+                          title={`${stayLabel}: ${stayGuests.map((b) => b.guestName).join(", ")}`}
                         >
                           <ArrowUpFromDot className="w-2.5 h-2.5 flex-shrink-0" />
-                          <span className="truncate">{stayGuests[0].guestName}</span>
+                          <span className="truncate">{stayFirst!.guestName}</span>
                         </button>
                       ) : null}
                     </div>
@@ -198,20 +226,20 @@ export default function CalendarPage() {
                       {checkins.length > 0 ? (
                         <button
                           onClick={() => setSelectedBooking(checkins[0])}
-                          className="flex items-center gap-0.5 text-[10px] text-green-600 truncate max-w-full"
+                          className={`flex items-center gap-0.5 text-[10px] ${checkinTextColor} truncate max-w-full`}
                           title={`入住: ${checkins.map((b) => b.guestName).join(", ")}`}
                         >
                           <ArrowDownToDot className="w-2.5 h-2.5 flex-shrink-0" />
                           <span className="truncate">{checkins[0].guestName}</span>
                         </button>
-                      ) : stayGuests.length > 0 ? (
+                      ) : hasStay ? (
                         <button
-                          onClick={() => setSelectedBooking(stayGuests[0])}
-                          className="flex items-center gap-0.5 text-[10px] text-blue-600 truncate max-w-full"
-                          title={`在住: ${stayGuests[0].guestName}`}
+                          onClick={() => setSelectedBooking(stayFirst!)}
+                          className={`flex items-center gap-0.5 text-[10px] ${stayTextColor} truncate max-w-full`}
+                          title={`${stayLabel}: ${stayGuests.map((b) => b.guestName).join(", ")}`}
                         >
                           <ArrowDownToDot className="w-2.5 h-2.5 flex-shrink-0" />
-                          <span className="truncate">{stayGuests[0].guestName}</span>
+                          <span className="truncate">{stayFirst!.guestName}</span>
                         </button>
                       ) : null}
                     </div>
@@ -239,7 +267,11 @@ export default function CalendarPage() {
         </div>
         <div className="flex items-center gap-1.5">
           <ArrowUpFromDot className="w-3.5 h-3.5 text-blue-500" />
-          当日在住（上下均显示）
+          已入住
+        </div>
+        <div className="flex items-center gap-1.5">
+          <ArrowUpFromDot className="w-3.5 h-3.5 text-amber-600" />
+          预定（待入住）
         </div>
       </div>
 
